@@ -1,25 +1,26 @@
-"""Модуль для отправки HTTP-запросов и получения ответов"""
+"""Асинхронный модуль для отправки HTTP-запросов и получения ответов"""
 
-import socket
+import asyncio
 from exceptions import TimeoutException
 
 
 class HttpClient:
     """
-    Отправляет запросы на сервер и получает ответы
-
-    Умеет обрабатывать таймауты и читать данные порциями
+    Асинхронный HTTP клиент для отправки запросов и получения ответов
     """
 
-    TIMEOUT_MS: int = 30000  # 30 секунд
-    BUFFER_SIZE: int = 8192  # 8KB
+    TIMEOUT_MS: int = 30000
+    BUFFER_SIZE: int = 8192
 
-    def send_and_receive(self, sock: socket.socket, request: str) -> str:
+    async def send_and_receive(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, request: str
+    ) -> str:
         """
-        Отправляет запрос через переданный сокет и возвращает ответ
+        Асинхронно отправляет запрос через переданный сокет и возвращает ответ
 
         Args:
-            sock: Сокет для отправки запроса
+            reader: StreamReader для чтения ответа
+            writer: StreamWriter для отправки запроса
             request: Текст HTTP запроса
 
         Returns:
@@ -28,26 +29,26 @@ class HttpClient:
         Raises:
             TimeoutException: Если сервер не отвечает в течение TIMEOUT_MS
         """
-        sock.settimeout(self.TIMEOUT_MS / 1000)
-
         try:
-            sock.send(request.encode('utf-8'))
+            writer.write(request.encode("utf-8"))
+            await writer.drain()
 
             response = bytearray()
-            sock.settimeout(self.TIMEOUT_MS / 1000)
-
             while True:
                 try:
-                    chunk = sock.recv(self.BUFFER_SIZE)
+                    chunk = await asyncio.wait_for(
+                        reader.read(self.BUFFER_SIZE), self.TIMEOUT_MS / 1000
+                    )
                     if not chunk:
                         break
                     response.extend(chunk)
-                    if b'\r\n\r\n' in response:
-                        sock.settimeout(0.5)
-                except socket.timeout:
+                    if b"\r\n\r\n" in response:
+                        # Получили заголовки, можно прекратить чтение
+                        break
+                except asyncio.TimeoutError:
                     break
 
-            return response.decode('utf-8', errors='replace')
+            return response.decode("utf-8", errors="replace")
 
-        except socket.timeout:
+        except asyncio.TimeoutError:
             raise TimeoutException(self.TIMEOUT_MS)

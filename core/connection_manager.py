@@ -1,142 +1,105 @@
-"""Модуль для управления соединениями (Keep-Alive)"""
+"""Асинхронный модуль для управления соединениями (Keep-Alive)"""
 
-import socket
-from threading import Lock
-from typing import Optional, Dict
+import asyncio
+from typing import Optional, Dict, Tuple
 
 
 class ConnectionManager:
     """
-    Управляет пулом постоянных соединений для Keep-Alive.
-
-    Позволяет переиспользовать открытые соединения к одним и тем же серверам,
-    что ускоряет последующие запросы
+    Асинхронный менеджер для управления пулом постоянных соединений
     """
 
     def __init__(self) -> None:
-        """Инициализация менеджера соединений"""
+        """Инициализация асинхронного менеджера соединений"""
         self.keep_alive: bool = True
-        self._connection_pool: Dict[str, socket.socket] = {}
-        self._lock: Lock = Lock()
+        self._connection_pool: Dict[str, asyncio.StreamWriter] = {}
+        self._reader_pool: Dict[str, asyncio.StreamReader] = {}
 
     def _make_key(self, host: str, port: int) -> str:
-        """
-        Создаёт уникальный ключ для пары хост:порт
-
-        Args:
-            host: Имя хоста
-            port: Номер порта
-
-        Returns:
-            Строка вида "host:port"
-        """
+        """Создаёт уникальный ключ для пары хост:порт"""
         return f"{host}:{port}"
 
-    def open_connection(self, host: str, port: int) -> socket.socket:
+    async def open_connection(
+        self, host: str, port: int
+    ) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         """
-        Открывает новое соединение с сервером и сохраняет в пул
+        Открывает новое асинхронное соединение с сервером
 
         Args:
             host: IP-адрес или домен сервера
             port: Номер порта
 
         Returns:
-            Созданный сокет
+            Кортеж (reader, writer) для асинхронного обмена данными
         """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(30)
-        sock.connect((host, port))
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        try:
+            reader, writer = await asyncio.open_connection(host, port)
+            key = self._make_key(host, port)
+            self._connection_pool[key] = writer
+            self._reader_pool[key] = reader
+            return reader, writer
+        except Exception as e:
+            raise ConnectionError(f"Не удалось подключиться к {host}:{port} - {e}")
 
-        key = self._make_key(host, port)
-        with self._lock:
-            self._connection_pool[key] = sock
-
-        return sock
-
-    def get_connection(self, host: str, port: int) -> Optional[socket.socket]:
+    def get_connection(
+        self, host: str, port: int
+    ) -> Optional[Tuple[asyncio.StreamReader, asyncio.StreamWriter]]:
         """
-        Возвращает сохранённое соединение из пула, если оно есть и живо
-
-        Args:
-            host: Имя хоста
-            port: Номер порта
+        Возвращает сохранённое соединение из пула
 
         Returns:
-            Сокет из пула или None, если соединения нет
+            Кортеж (reader, writer) или None
         """
         if not self.keep_alive:
             return None
 
         key = self._make_key(host, port)
-        with self._lock:
-            sock = self._connection_pool.get(key)
+        writer = self._connection_pool.get(key)
+        reader = self._reader_pool.get(key)
 
-        if sock and self._is_connection_alive(sock):
-            return sock
-        elif sock:
-            self.close_connection(sock)
+        if writer and not writer.is_closing():
+            return reader, writer
+        elif writer:
+            self.close_connection(host, port)
 
         return None
 
-    def save_connection(self, host: str, port: int, sock: socket.socket) -> None:
-        """
-        Сохраняет соединение в пул для будущего использования
-
-        Args:
-            host: Имя хоста
-            port: Номер порта
-            sock: Сокет для сохранения
-        """
+    def save_connection(
+        self,
+        host: str,
+        port: int,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """Сохраняет соединение в пул для будущего использования"""
         if not self.keep_alive:
-            sock.close()
+            writer.close()
             return
 
         key = self._make_key(host, port)
-        with self._lock:
-            self._connection_pool[key] = sock
+        self._connection_pool[key] = writer
+        self._reader_pool[key] = reader
 
-    def close_connection(self, sock: socket.socket) -> None:
-        """
-        Закрывает соединение и удаляет его из пула
-
-        Args:
-            sock: Сокет для закрытия
-        """
-        try:
-            sock.close()
-        except Exception:
-            pass
-
-        with self._lock:
-            for key, s in list(self._connection_pool.items()):
-                if s == sock:
-                    del self._connection_pool[key]
-                    break
+    def close_connection(self, host: str, port: int) -> None:
+        """Закрывает соединение и удаляет его из пула"""
+        key = self._make_key(host, port)
+        writer = self._connection_pool.get(key)
+        if writer:
+            try:
+                writer.close()
+            except Exception:
+                pass
+            if key in self._connection_pool:
+                del self._connection_pool[key]
+            if key in self._reader_pool:
+                del self._reader_pool[key]
 
     def close_all(self) -> None:
-        """Закрывает все соединения в пуле и очищает его"""
-        with self._lock:
-            for sock in self._connection_pool.values():
-                try:
-                    sock.close()
-                except Exception:
-                    pass
-            self._connection_pool.clear()
-
-    @staticmethod #че...?
-    def _is_connection_alive(sock: socket.socket) -> bool:
-        """
-        Проверяет, живо ли соединение
-
-        Args:
-            sock: Сокет для проверки
-
-        Returns:
-            True если соединение живо, False в противном случае
-        """
-        try:
-            sock.getpeername()
-            return True
-        except Exception:
-            return False
+        """Закрывает все соединения в пуле"""
+        for writer in self._connection_pool.values():
+            try:
+                writer.close()
+            except Exception:
+                pass
+        self._connection_pool.clear()
+        self._reader_pool.clear()

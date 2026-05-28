@@ -1,15 +1,13 @@
-"""Модуль для DNS резолвинга (преобразование доменов в IP-адреса)"""
+"""Асинхронный модуль для DNS резолвинга (преобразование доменов в IP-адреса)"""
 
-import socket
+import asyncio
 from threading import Lock
 from exceptions import BadRequestException
 
 
 class DnsResolver:
     """
-    Преобразует доменные имена в IP-адреса с кэшированием
-
-    Пример: google.com → 142.250.185.46
+    Асинхронный DNS резолвер с кэшированием
     """
 
     def __init__(self) -> None:
@@ -17,11 +15,9 @@ class DnsResolver:
         self._cache: dict = {}
         self._lock: Lock = Lock()
 
-    def resolve(self, hostname: str) -> str:
+    async def resolve(self, hostname: str) -> str:
         """
-        Преобразует доменное имя в IP-адрес
-        Сначала проверяет кэш, если нет — выполняет DNS запрос
-        Результат сохраняется в кэш для ускорения следующих запросов
+        Асинхронно преобразует доменное имя в IP-адрес
 
         Args:
             hostname: Доменное имя (например, "google.com")
@@ -37,9 +33,11 @@ class DnsResolver:
                 return self._cache[hostname]
 
         try:
-            ip: str = socket.gethostbyname(hostname)
+            loop = asyncio.get_event_loop()
+            ip = await loop.getaddrinfo(hostname, 80, family=1, type=1, proto=6)
+            result: str = ip[0][4][0]
             with self._lock:
-                self._cache[hostname] = ip
-            return ip
-        except socket.gaierror:
-            raise BadRequestException(f"Не удалось разрешить домен: {hostname}")
+                self._cache[hostname] = result
+            return result
+        except Exception as e:
+            raise BadRequestException(f"Не удалось разрешить домен: {hostname} - {e}")

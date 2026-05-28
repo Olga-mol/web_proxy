@@ -1,88 +1,82 @@
-"""Модуль с главным сервером прокси"""
+"""Асинхронный модуль с главным сервером прокси"""
 
-import socket
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
+import sys
 from typing import Optional
 
 from .logger import Logger
-from core.request_handler import RequestHandler
 
 
 class ProxyServer:
     """
-    Главный сервер прокси
-
-    Отвечает за:
-    - Запуск TCP сервера на указанном порту
-    - Приём входящих подключений
-    - Создание обработчиков для каждого клиента
+    Асинхронный главный сервер прокси
     """
 
     def __init__(self, port: int = 8080, max_workers: int = 100) -> None:
         """
-        Инициализация прокси-сервера
+        Инициализация асинхронного прокси-сервера
 
         Args:
             port: Номер порта для прослушивания (по умолчанию 8080)
-            max_workers: Максимальное количество одновременных потоков
+            max_workers: Максимальное количество одновременных задач
         """
         self.port: int = port
         self.max_workers: int = max_workers
         self.logger: Logger = Logger()
-        self.server_socket: Optional[socket.socket] = None
-        self.thread_pool: Optional[ThreadPoolExecutor] = None
+        self.server: Optional[asyncio.Server] = None
         self.running: bool = False
 
-    def start(self) -> None:
+    async def start(self) -> None:
         """
-        Запускает прокси-сервер
-
-        Создаёт сокет, начинает слушать порт и принимает подключения
-        Для каждого клиента создаётся отдельный RequestHandler в новом потоке
-        Работает в бесконечном цикле до вызова stop() или нажатия Ctrl+C
+        Асинхронно запускает прокси-сервер
         """
         try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind(('0.0.0.0', self.port))
-            self.server_socket.listen(100)
-
-            self.thread_pool = ThreadPoolExecutor(max_workers=self.max_workers)
+            self.server = await asyncio.start_server(
+                self._handle_client, "0.0.0.0", self.port, limit=65535
+            )
             self.running = True
 
             self.logger.log(f"Прокси-сервер запущен на порту {self.port}")
             self.logger.log(f"Настройте браузер на localhost:{self.port}")
 
-            while self.running:
-                try:
-                    client_socket, client_addr = self.server_socket.accept()
-                    client_ip = client_addr[0]
-                    self.logger.log(f"Новое подключение от {client_ip}")
+            async with self.server:
+                await self.server.serve_forever()
 
-                    handler = RequestHandler(client_socket, self.logger)
-                    self.thread_pool.submit(handler.run)
-
-                except OSError:
-                    if self.running:
-                        self.logger.log("Ошибка сокета")
-                    break
-
-        except KeyboardInterrupt:
-            self.stop()
+        except asyncio.CancelledError:
+            self.logger.log("Сервер остановлен")
+            sys.exit(0)
+        except OSError as e:
+            self.logger.log(
+                f"Ошибка: не удалось запустить сервер на порту {self.port} - {e}"
+            )
+            sys.exit(1)
         except Exception as e:
             self.logger.log(f"Критическая ошибка сервера: {e}")
+            sys.exit(4)
+
+    async def _handle_client(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        """
+        Обрабатывает подключение нового клиента
+
+        Args:
+            reader: StreamReader для чтения данных от клиента
+            writer: StreamWriter для отправки данных клиенту
+        """
+        # Импорт ВНУТРИ метода для избежания циклического импорта
+        from core.request_handler import RequestHandler
+
+        client_ip = writer.get_extra_info("peername")[0]
+        self.logger.log(f"Новое подключение от {client_ip}")
+
+        handler = RequestHandler(reader, writer, self.logger)
+        await handler.run()
 
     def stop(self) -> None:
-        """
-        Останавливает прокси-сервер
-
-        Закрывает серверный сокет, завершает все потоки в пуле
-        и закрывает логгер
-        """
+        """Останавливает прокси-сервер"""
         self.running = False
-        if self.server_socket:
-            self.server_socket.close()
-        if self.thread_pool:
-            self.thread_pool.shutdown(wait=True)
+        if self.server:
+            self.server.close()
         self.logger.log("Прокси-сервер остановлен")
         self.logger.close()

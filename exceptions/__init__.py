@@ -4,12 +4,12 @@ from .proxy_errors import (
     ProxyError,
     BadRequestException,
     ConnectionRefusedException,
-    TimeoutException
+    TimeoutException,
 )
 
 __all__ = [
-    'ProxyError',
-    'BadRequestException',
-    'ConnectionRefusedException',
-    'TimeoutException'
+    "ProxyError",
+    "BadRequestException",
+    "ConnectionRefusedException",
+    "TimeoutException",
 ]

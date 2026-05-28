@@ -5,4 +5,4 @@ from .http_client import HttpClient
 from .connection_manager import ConnectionManager
 from .dns_server import DnsResolver
 
-__all__ = ['RequestHandler', 'HttpClient', 'ConnectionManager', 'DnsResolver']
+__all__ = ["RequestHandler", "HttpClient", "ConnectionManager", "DnsResolver"]
