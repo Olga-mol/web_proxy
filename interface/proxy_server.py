@@ -47,8 +47,8 @@ class ProxyServer:
             sys.exit(0)
         except OSError as e:
             self.logger.log(
-                f"Ошибка: не удалось запустить сервер на порту {self.port} - {e}"
-            )
+                f"Ошибка: не удалось запустить "
+                f"сервер на порту {self.port} - {e}")
             sys.exit(1)
         except Exception as e:
             self.logger.log(f"Критическая ошибка сервера: {e}")

@@ -39,7 +39,8 @@ class ConnectionManager:
             self._reader_pool[key] = reader
             return reader, writer
         except Exception as e:
-            raise ConnectionError(f"Не удалось подключиться к {host}:{port} - {e}")
+            raise ConnectionError(
+                f"Не удалось подключиться к {host}:{port} - {e}")
 
     def get_connection(
         self, host: str, port: int

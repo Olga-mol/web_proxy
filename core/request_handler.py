@@ -18,8 +18,8 @@ class RequestHandler:
     """
 
     def __init__(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, logger: Logger
-    ) -> None:
+        self, reader: asyncio.StreamReader, writer:
+            asyncio.StreamWriter, logger: Logger) -> None:
         """
         Инициализация асинхронного обработчика запросов
 
@@ -60,7 +60,8 @@ class RequestHandler:
 
             processing_time = int((time.time() - start_time) * 1000)
             self.logger.log(
-                f"[{self.client_ip}] Обработка завершена за {processing_time} мс"
+                f"[{self.client_ip}] Обработка "
+                f"завершена за {processing_time} мс"
             )
 
         except BadRequestException as e:
@@ -70,7 +71,8 @@ class RequestHandler:
             await self._send_error_response(e.error_code, e.message)
             self.logger.log(f"[{self.client_ip}] {e.error_code}: {e.message}")
         except Exception as e:
-            await self._send_error_response(500, f"Internal Server Error: {str(e)}")
+            await self._send_error_response(500,
+                                            f"Internal Server Error: {str(e)}")
             self.logger.log(f"[{self.client_ip}] 500: {str(e)}")
         finally:
             try:
@@ -113,14 +115,15 @@ class RequestHandler:
         is_new = conn_info is None
 
         if is_new:
-            server_reader, server_writer = await self.conn_manager.open_connection(
-                ip, port
-            )
-            self.logger.log(f"[{self.client_ip}] Новое соединение с {host}:{port}")
+            server_reader, server_writer = \
+                await self.conn_manager.open_connection(ip, port)
+            self.logger.log(
+                f"[{self.client_ip}] Новое соединение с {host}:{port}")
         else:
             server_reader, server_writer = conn_info
             self.logger.log(
-                f"[{self.client_ip}] Переиспользовано соединение с {host}:{port}"
+                f"[{self.client_ip}] "
+                f"Переиспользовано соединение с {host}:{port}"
             )
 
         request_to_server = f"{method} {path} {http_version}\r\n"
@@ -157,8 +160,10 @@ class RequestHandler:
         )
 
         if keep_alive and self.conn_manager.keep_alive:
-            self.conn_manager.save_connection(host, port, server_reader, server_writer)
-            self.logger.log(f"[{self.client_ip}] Соединение сохранено (Keep-Alive)")
+            self.conn_manager.save_connection(
+                host, port, server_reader, server_writer)
+            self.logger.log(
+                f"[{self.client_ip}] Соединение сохранено (Keep-Alive)")
         else:
             self.conn_manager.close_connection(host, port)
             self.logger.log(f"[{self.client_ip}] Соединение закрыто")
@@ -180,7 +185,8 @@ class RequestHandler:
         self.logger.log(f"[{self.client_ip}] HTTPS CONNECT к {host}:{port}")
 
         try:
-            server_reader, server_writer = await asyncio.open_connection(host, port)
+            server_reader, server_writer = await (
+                asyncio.open_connection(host, port))
             self.logger.log(
                 f"[{self.client_ip}] Соединение с {host}:{port} установлено"
             )
@@ -193,9 +199,11 @@ class RequestHandler:
         self.writer.write(response.encode("utf-8"))
         await self.writer.drain()
 
-        self.logger.log(f"[{self.client_ip}] Туннель для {host}:{port} установлен")
+        self.logger.log(
+            f"[{self.client_ip}] Туннель для {host}:{port} установлен")
 
-        await self._relay_data(self.reader, self.writer, server_reader, server_writer)
+        await self._relay_data(self.reader,
+                               self.writer, server_reader, server_writer)
 
         self.logger.log(f"[{self.client_ip}] Туннель для {host}:{port} закрыт")
 
@@ -237,7 +245,8 @@ class RequestHandler:
                 headers[key.strip()] = value.strip()
         return headers
 
-    def _extract_host_port(self, full_url: str, headers: dict) -> Tuple[str, int]:
+    def _extract_host_port(self, full_url: str,
+                           headers: dict) -> Tuple[str, int]:
         """Извлекает хост и порт из URL или заголовка Host"""
         if full_url.startswith("http://"):
             without_http = full_url[7:]
@@ -277,7 +286,8 @@ class RequestHandler:
         return 0
 
     def _build_error_response_string(self, code: int, message: str) -> str:
-        """Создаёт HTML страницу с ошибкой (синхронный метод для тестирования)"""
+        """Создаёт HTML страницу с ошибкой
+        (синхронный метод для тестирования)"""
         return f"""HTTP/1.1 {code} {message}
 Content-Type: text/html; charset=utf-8
 Connection: close
@@ -302,7 +312,8 @@ Connection: close
             pass
 
         def _build_http_request_string(
-            self, method: str, path: str, http_version: str, host: str, headers: dict
+            self, method: str, path: str,
+                http_version: str, host: str, headers: dict
         ) -> str:
             """Создаёт строку HTTP запроса (синхронный метод)"""
             request = f"{method} {path} {http_version}\r\n"

@@ -11,7 +11,8 @@ def set_windows_proxy(port: int = 8080) -> None:
             [
                 "reg",
                 "add",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                "HKCU\\Software\\Microsoft\\Windows"
+                "\\CurrentVersion\\Internet Settings",
                 "/v",
                 "ProxyEnable",
                 "/t",
@@ -26,7 +27,8 @@ def set_windows_proxy(port: int = 8080) -> None:
             [
                 "reg",
                 "add",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                "HKCU\\Software\\Microsoft"
+                "\\Windows\\CurrentVersion\\Internet Settings",
                 "/v",
                 "ProxyServer",
                 "/t",
@@ -49,7 +51,8 @@ def clear_windows_proxy() -> None:
             [
                 "reg",
                 "add",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                "HKCU\\Software\\Microsoft"
+                "\\Windows\\CurrentVersion\\Internet Settings",
                 "/v",
                 "ProxyEnable",
                 "/t",
@@ -73,8 +76,14 @@ if __name__ == "__main__":
         elif sys.argv[1] == "off":
             clear_windows_proxy()
         else:
-            print("Использование: python setup_proxy.py on [порт]  - включить прокси")
-            print("             python setup_proxy.py off          - выключить прокси")
+            print(
+                "Использование: python setup_proxy.py on "
+                "[порт]  - включить прокси")
+            print("             python setup_proxy.py off       "
+                  "   - выключить прокси")
     else:
-        print("Использование: python setup_proxy.py on [порт]  - включить прокси")
-        print("             python setup_proxy.py off          - выключить прокси")
+        print(
+            "Использование: python setup_proxy.py "
+            "on [порт]  - включить прокси")
+        print("             python setup_proxy.py "
+              "off          - выключить прокси")

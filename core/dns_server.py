@@ -1,4 +1,5 @@
-"""Асинхронный модуль для DNS резолвинга (преобразование доменов в IP-адреса)"""
+"""Асинхронный модуль для DNS резолвинга
+(преобразование доменов в IP-адреса)"""
 
 import asyncio
 from threading import Lock
@@ -34,10 +35,12 @@ class DnsResolver:
 
         try:
             loop = asyncio.get_event_loop()
-            ip = await loop.getaddrinfo(hostname, 80, family=1, type=1, proto=6)
+            ip = await loop.getaddrinfo(hostname,
+                                        80, family=1, type=1, proto=6)
             result: str = ip[0][4][0]
             with self._lock:
                 self._cache[hostname] = result
             return result
         except Exception as e:
-            raise BadRequestException(f"Не удалось разрешить домен: {hostname} - {e}")
+            raise BadRequestException(
+                f"Не удалось разрешить домен: {hostname} - {e}")

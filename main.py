@@ -14,26 +14,7 @@ def print_help() -> None:
         with open(help_file_path, "r", encoding="utf-8") as f:
             print(f.read())
     except FileNotFoundError:
-        print(
-            """
-WEB PROXY SERVER - СПРАВКА
-
-Файл справки help.txt не найден.
-
-Использование:
-  python main.py [ПОРТ]
-
-Параметры:
-  ПОРТ         Номер порта для прослушивания (по умолчанию 8080)
-
-Опции:
-  --help, -h   Показать эту справку
-
-Примеры:
-  python main.py              # Запуск на порту 8080
-  python main.py 8888         # Запуск на порту 8888
-"""
-        )
+        exit(0)
 
 
 async def main_async(port: int) -> None:
@@ -66,12 +47,14 @@ def main() -> None:
         try:
             port = int(sys.argv[1])
             if port < 1 or port > 65535:
-                print(f"Ошибка: порт должен быть в диапазоне от 1 до 65535")
+                print("Ошибка: порт должен быть в диапазоне от 1 до 65535")
                 print("Использование: python main.py [порт]")
                 print("Для справки: python main.py --help")
                 sys.exit(1)
         except ValueError:
-            print(f"Ошибка: '{sys.argv[1]}' не является допустимым номером порта")
+            print(
+                f"Ошибка: '{sys.argv[1]}' не "
+                f"является допустимым номером порта")
             print("Использование: python main.py [порт]")
             print("Для справки: python main.py --help")
             sys.exit(1)

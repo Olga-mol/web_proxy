@@ -13,8 +13,8 @@ class HttpClient:
     BUFFER_SIZE: int = 8192
 
     async def send_and_receive(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, request: str
-    ) -> str:
+        self, reader: asyncio.StreamReader, writer:
+            asyncio.StreamWriter, request: str) -> str:
         """
         Асинхронно отправляет запрос через переданный сокет и возвращает ответ
 

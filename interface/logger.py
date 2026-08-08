@@ -12,7 +12,8 @@ class Logger:
         Инициализация логгера
 
         Args:
-            log_file: Путь к файлу для сохранения логов (по умолчанию proxy.log)
+            log_file: Путь к файлу для
+            сохранения логов (по умолчанию proxy.log)
         """
         self.log_file: Path = Path(log_file)
 
@@ -68,7 +69,8 @@ class Logger:
             processing_time_ms: Время обработки запроса в миллисекундах
         """
         self.log(
-            f"{client_ip} | {method} | {url} | {status_code} | {bytes_transferred} байт | {processing_time_ms} мс"
+            f"{client_ip} | {method} | {url} | {status_code} "
+            f"| {bytes_transferred} байт | {processing_time_ms} мс"
         )
 
     def close(self) -> None:
